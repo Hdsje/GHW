@@ -1,0 +1,20 @@
+name: License Audit
+
+on:
+  workflow_call:
+
+jobs:
+  license-check:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Установка
+        run: npm ci
+
+      - name: 📜 Проверка лицензий
+        run: |
+          npx license-checker --summary --failOn 'GPL-3.0;AGPL-3.0' || true
+          echo "=== Запрещённые ==="
+          npx license-checker --failOn 'GPL-3.0;AGPL-3.0' --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;CC0-1.0;Unlicense' 2>&1 || true

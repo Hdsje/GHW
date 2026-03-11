@@ -1,0 +1,21 @@
+name: Coverage Report
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  coverage:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Установка
+        run: npm ci
+
+      - name: 🧪 Тесты с coverage
+        run: npx jest --coverage --coverageReporters='text-summary' 2>&1 || true

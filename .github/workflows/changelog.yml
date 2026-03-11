@@ -1,0 +1,47 @@
+name: AI Changelog
+
+on:
+  workflow_call:
+
+permissions:
+  contents: write
+
+jobs:
+  changelog:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: 📝 Генерация
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_NUM="${{ github.event.pull_request.number }}"
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          DATE=$(date '+%Y-%m-%d %H:%M')
+
+          if echo "$PR_TITLE" | grep -qi "^feat"; then TYPE="✨ Добавлено"
+          elif echo "$PR_TITLE" | grep -qi "^fix"; then TYPE="🐛 Исправлено"
+          elif echo "$PR_TITLE" | grep -qi "^refactor"; then TYPE="♻️ Рефакторинг"
+          else TYPE="📦 Изменение"; fi
+
+          ENTRY="- ${TYPE}: ${PR_TITLE} ([#${PR_NUM}](${PR_URL})) by @${PR_AUTHOR}"
+
+          if [ -f CHANGELOG.md ]; then
+            sed -i "1a\\\n## [${DATE}]\n${ENTRY}\n" CHANGELOG.md
+          else
+            printf '# Changelog\n\n## [%s]\n%s\n' "$DATE" "$ENTRY" > CHANGELOG.md
+          fi
+
+      - name: 📤 Коммит
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git diff --staged --quiet && exit 0
+          git commit -m "docs(changelog): update [skip ci]"
+          git push origin main

@@ -1,0 +1,29 @@
+name: Auto-Merge
+
+on:
+  workflow_call:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    runs-on: self-hosted
+    steps:
+      - name: 🔍 Поиск PR для авто-мержа
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PRS=$(gh pr list --label "auto-merge" --json number --jq '.[].number' 2>/dev/null || echo "")
+          if [ -z "$PRS" ]; then
+            echo "✅ Нет PR для авто-мержа"
+            exit 0
+          fi
+          for PR_NUM in $PRS; do
+            CHECKS=$(gh pr checks $PR_NUM --json state --jq '[.[].state] | all(. == "SUCCESS")' 2>/dev/null || echo "false")
+            if [ "$CHECKS" = "true" ]; then
+              echo "✅ Мержим PR #${PR_NUM}"
+              gh pr merge $PR_NUM --squash --auto 2>/dev/null || true
+            fi
+          done

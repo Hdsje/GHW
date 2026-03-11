@@ -1,0 +1,75 @@
+name: Telegram Notification
+
+on:
+  workflow_call:
+    inputs:
+      event_type:
+        description: 'Тип события: ci_failed, pr_opened, pr_merged, release'
+        required: true
+        type: string
+      repo_name:
+        description: 'Имя репозитория'
+        required: true
+        type: string
+      details:
+        description: 'Детали (workflow, PR title, tag)'
+        required: false
+        type: string
+        default: ''
+      url:
+        description: 'Ссылка на логи/PR/release'
+        required: false
+        type: string
+        default: ''
+      author:
+        description: 'Автор'
+        required: false
+        type: string
+        default: ''
+    secrets:
+      TELEGRAM_BOT_TOKEN:
+        required: true
+      TELEGRAM_CHAT_ID:
+        required: true
+
+jobs:
+  send:
+    runs-on: self-hosted
+    steps:
+      - name: 📢 Отправка
+        run: |
+          EVENT="${{ inputs.event_type }}"
+          REPO="${{ inputs.repo_name }}"
+          DETAILS="${{ inputs.details }}"
+          URL="${{ inputs.url }}"
+          AUTHOR="${{ inputs.author }}"
+
+          case "$EVENT" in
+            ci_failed)
+              MESSAGE="🔴 *CI Failed*\n\n📦 *${REPO}*\n❌ ${DETAILS}\n👤 @${AUTHOR}\n\n[Посмотреть логи](${URL})"
+              ;;
+            pr_opened)
+              MESSAGE="🟡 *Новый PR*\n\n📦 *${REPO}*\n📝 ${DETAILS}\n👤 @${AUTHOR}\n\n[Посмотреть PR](${URL})"
+              ;;
+            pr_merged)
+              MESSAGE="🟢 *PR смержен*\n\n📦 *${REPO}*\n📝 ${DETAILS}\n\n[Подробнее](${URL})"
+              ;;
+            release)
+              MESSAGE="🚀 *Релиз ${DETAILS}*\n\n📦 *${REPO}*\n\n[Release Notes](${URL})"
+              ;;
+            self_heal)
+              MESSAGE="🧠 *AI Self-Heal*\n\n📦 *${REPO}*\n🔧 ${DETAILS}"
+              ;;
+            health_alert)
+              MESSAGE="🏥 *Self-Healing Alert*\n\n📦 *${REPO}*\n${DETAILS}"
+              ;;
+            *)
+              MESSAGE="📦 *${REPO}*\n${DETAILS}"
+              ;;
+          esac
+
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d parse_mode="Markdown" \
+            -d disable_web_page_preview="true" \
+            -d text="$MESSAGE" > /dev/null
