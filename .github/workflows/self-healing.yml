@@ -23,19 +23,19 @@ jobs:
           ISSUES=""
           UNHEALTHY=$(docker ps --filter "health=unhealthy" --format '{{.Names}}' 2>/dev/null || echo "")
           if [ -n "$UNHEALTHY" ]; then
-            ISSUES="${ISSUES}Docker: ${UNHEALTHY}\n"
+            ISSUES="${ISSUES}Docker: ${UNHEALTHY}"$'\n'
             ALL_OK=false
             for c in $UNHEALTHY; do docker restart $c 2>/dev/null || true; done
           fi
           DISK=$(df / --output=pcent | tail -1 | tr -d ' %')
           if [ "$DISK" -gt 90 ]; then
-            ISSUES="${ISSUES}Диск: ${DISK}%\n"
+            ISSUES="${ISSUES}Диск: ${DISK}%"$'\n'
             ALL_OK=false
             docker system prune -f 2>/dev/null || true
           fi
           MEM=$(free -m | awk '/^Mem:/ {print $7}')
           if [ "$MEM" -lt 256 ]; then
-            ISSUES="${ISSUES}RAM: ${MEM}MB\n"
+            ISSUES="${ISSUES}RAM: ${MEM}MB"$'\n'
             ALL_OK=false
           fi
           echo "all_ok=$ALL_OK" >> $GITHUB_OUTPUT
@@ -51,6 +51,8 @@ jobs:
         run: |
           [ -z "$TELEGRAM_BOT_TOKEN" ] && exit 0
           REPO="${{ github.event.repository.name }}"
+          ISSUES="${{ steps.check.outputs.issues }}"
+          MSG=$(printf "🏥 Self-Healing\n📦 %s\n%s" "$REPO" "$ISSUES")
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="$TELEGRAM_CHAT_ID" \
-            -d text="🏥 Self-Healing\n📦 ${REPO}\n${{ steps.check.outputs.issues }}" > /dev/null
+            --data-urlencode "text=$MSG" > /dev/null
